@@ -1,8 +1,7 @@
 ---
 import "@workspace/ui/globals.css"
 import { RecipeForm } from "@/components/RecipeForm"
-
-const env = Astro.locals.runtime.env
+import { env } from "cloudflare:workers"
 
 interface RecipeMeta {
   title: string
@@ -15,7 +14,7 @@ const listResult = await env.RECIPES.list<RecipeMeta>()
 
 const recentRecipes = listResult.keys
   .filter((k) => k.metadata?.savedAt != null)
-  .sort((a, b) => (b.metadata!.savedAt) - (a.metadata!.savedAt))
+  .sort((a, b) => b.metadata!.savedAt - a.metadata!.savedAt)
   .slice(0, 3)
   .map((k) => ({
     url: k.name,
@@ -37,7 +36,7 @@ const recentRecipes = listResult.keys
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-1">
             <h1 class="text-xl font-semibold tracking-tight">Save a Recipe</h1>
-            <p class="text-muted-foreground text-sm">
+            <p class="text-sm text-muted-foreground">
               Paste a link to any recipe page and we'll extract the ingredients
               and instructions for you.
             </p>
@@ -48,13 +47,15 @@ const recentRecipes = listResult.keys
         {
           recentRecipes.length > 0 && (
             <div class="flex flex-col gap-3">
-              <h2 class="text-sm font-medium text-muted-foreground">Recent recipes</h2>
+              <h2 class="text-sm font-medium text-muted-foreground">
+                Recent recipes
+              </h2>
               <ul class="flex flex-col gap-2">
                 {recentRecipes.map((r) => (
                   <li>
                     <a
                       href={`/recipe?url=${encodeURIComponent(r.url)}`}
-                      class="group flex items-center gap-3 rounded-lg ring-1 ring-foreground/10 bg-card text-card-foreground overflow-hidden transition-shadow hover:ring-foreground/20 hover:shadow-sm"
+                      class="group flex items-center gap-3 overflow-hidden rounded-lg bg-card text-card-foreground ring-1 ring-foreground/10 transition-shadow hover:shadow-sm hover:ring-foreground/20"
                     >
                       {r.imageUrl ? (
                         <img

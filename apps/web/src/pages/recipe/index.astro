@@ -3,8 +3,8 @@ import "@workspace/ui/globals.css"
 import { scrapeRecipe } from "@/lib/scrape"
 import type { Recipe } from "@/lib/types"
 import { IngredientList } from "@/components/IngredientList"
-
-const env = Astro.locals.runtime.env
+import { formatDuration } from "@/lib/duration"
+import { env } from "cloudflare:workers"
 
 // ── Resolve the recipe URL from query param ───────────────────────────────────
 const rawUrl = Astro.url.searchParams.get("url")
@@ -55,7 +55,7 @@ if (cached) {
     <div class="mx-auto max-w-2xl px-6 py-12">
       <a
         href="/"
-        class="text-muted-foreground hover:text-foreground mb-8 inline-flex items-center gap-1 text-sm transition-colors"
+        class="mb-8 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         &larr; Back
       </a>
@@ -64,7 +64,7 @@ if (cached) {
         !recipe ? (
           <div class="flex flex-col gap-2">
             <h1 class="text-xl font-semibold">Could not extract recipe</h1>
-            <p class="text-muted-foreground text-sm">
+            <p class="text-sm text-muted-foreground">
               We weren't able to find a recipe at{" "}
               <a
                 href={recipeUrl}
@@ -93,44 +93,55 @@ if (cached) {
                 {recipe.title}
               </h1>
               {recipe.description && (
-                <p class="text-muted-foreground text-sm leading-relaxed">
+                <p class="text-sm leading-relaxed text-muted-foreground">
                   {recipe.description}
                 </p>
               )}
             </div>
 
-            {(recipe.prepTime || recipe.cookTime || recipe.totalTime || recipe.servings) && (
+            {(recipe.prepTime ||
+              recipe.cookTime ||
+              recipe.totalTime ||
+              recipe.servings) && (
               <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {recipe.prepTime && (
-                  <div class="bg-muted rounded-md px-3 py-2">
-                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  <div class="rounded-md bg-muted px-3 py-2">
+                    <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       Prep
                     </dt>
-                    <dd class="mt-0.5 text-sm font-medium">{recipe.prepTime}</dd>
+                    <dd class="mt-0.5 text-sm font-medium">
+                      {formatDuration(recipe.prepTime)}
+                    </dd>
                   </div>
                 )}
                 {recipe.cookTime && (
-                  <div class="bg-muted rounded-md px-3 py-2">
-                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  <div class="rounded-md bg-muted px-3 py-2">
+                    <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       Cook
                     </dt>
-                    <dd class="mt-0.5 text-sm font-medium">{recipe.cookTime}</dd>
+                    <dd class="mt-0.5 text-sm font-medium">
+                      {formatDuration(recipe.cookTime)}
+                    </dd>
                   </div>
                 )}
                 {recipe.totalTime && (
-                  <div class="bg-muted rounded-md px-3 py-2">
-                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  <div class="rounded-md bg-muted px-3 py-2">
+                    <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       Total
                     </dt>
-                    <dd class="mt-0.5 text-sm font-medium">{recipe.totalTime}</dd>
+                    <dd class="mt-0.5 text-sm font-medium">
+                      {formatDuration(recipe.totalTime)}
+                    </dd>
                   </div>
                 )}
                 {recipe.servings && (
-                  <div class="bg-muted rounded-md px-3 py-2">
-                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                  <div class="rounded-md bg-muted px-3 py-2">
+                    <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                       Serves
                     </dt>
-                    <dd class="mt-0.5 text-sm font-medium">{recipe.servings}</dd>
+                    <dd class="mt-0.5 text-sm font-medium">
+                      {recipe.servings}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -146,7 +157,7 @@ if (cached) {
               <ol class="flex flex-col gap-4">
                 {recipe.instructions.map((step, i) => (
                   <li class="flex gap-3 text-sm">
-                    <span class="bg-primary text-primary-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
                       {i + 1}
                     </span>
                     <span class="leading-relaxed">{step}</span>
@@ -155,12 +166,12 @@ if (cached) {
               </ol>
             </section>
 
-            <footer class="text-muted-foreground border-t pt-4 text-xs">
+            <footer class="border-t pt-4 text-xs text-muted-foreground">
               <a
                 href={recipeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="hover:text-foreground underline transition-colors"
+                class="underline transition-colors hover:text-foreground"
               >
                 View original recipe
               </a>
