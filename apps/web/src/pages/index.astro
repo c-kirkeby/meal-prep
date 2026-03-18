@@ -2,25 +2,22 @@
 import "@workspace/ui/globals.css"
 import { RecipeForm } from "@/components/RecipeForm"
 import { RecipeCarousel } from "@/components/RecipeCarousel"
-import { env } from "cloudflare:workers"
+import { getLiveCollection } from "astro:content"
 
-interface RecipeMeta {
-  title: string
-  imageUrl: string | null
-  savedAt: number
-}
+const { entries, error } = await getLiveCollection("recipes", { limit: 10 })
 
-// List up to 10 keys, sorted by savedAt descending, take 3
-const listResult = await env.RECIPES.list<RecipeMeta>()
-
-const recentRecipes = listResult.keys
-  .filter((k) => k.metadata?.savedAt != null)
-  .sort((a, b) => b.metadata!.savedAt - a.metadata!.savedAt)
-  .map((k) => ({
-    url: k.name,
-    title: k.metadata?.title,
-    imageUrl: k.metadata?.imageUrl,
-  }))
+const recentRecipes =
+  !error && entries
+    ? entries
+        .filter((e): e is typeof e & { data: { title: string } } =>
+          typeof e.data.title === "string"
+        )
+        .map((e) => ({
+          url: e.id,
+          title: e.data.title,
+          imageUrl: e.data.imageUrl,
+        }))
+    : []
 ---
 
 <html lang="en">

@@ -1,4 +1,4 @@
-export interface Recipe {
+export interface Recipe extends Record<string, unknown> {
   title: string
   description?: string
   ingredients: string[]

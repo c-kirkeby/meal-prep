@@ -1,10 +1,9 @@
 ---
 import "@workspace/ui/globals.css"
-import { scrapeRecipe } from "@/lib/scrape"
 import type { Recipe } from "@/lib/types"
 import { IngredientList } from "@/components/IngredientList"
 import { formatDuration } from "@/lib/duration"
-import { env } from "cloudflare:workers"
+import { getLiveEntry } from "astro:content"
 
 // ── Resolve the recipe URL from query param ───────────────────────────────────
 const rawUrl = Astro.url.searchParams.get("url")
@@ -21,31 +20,11 @@ try {
   return Astro.redirect("/")
 }
 
-// ── KV cache check ─────────────────────────────────────────────────────────────
-const cacheKey = recipeUrl
-let recipe: Recipe | null = null
-let fromCache = false
+// ── Load via live loader (KV cache → scrape → persist) ────────────────────────
+const { entry, error } = await getLiveEntry("recipes", recipeUrl)
 
-const cached = await env.RECIPES.get(cacheKey, "json")
-if (cached) {
-  recipe = cached as Recipe
-  fromCache = true
-} else {
-  recipe = await scrapeRecipe(
-    recipeUrl,
-    env.CLOUDFLARE_ACCOUNT_ID,
-    env.CLOUDFLARE_API_TOKEN
-  )
-  if (recipe) {
-    await env.RECIPES.put(cacheKey, JSON.stringify(recipe), {
-      metadata: {
-        title: recipe.title,
-        imageUrl: recipe.imageUrl ?? null,
-        savedAt: Date.now(),
-      },
-    })
-  }
-}
+const recipe: Recipe | null =
+  !error && entry ? (entry.data as Recipe) : null
 ---
 
 <html lang="en">
@@ -99,7 +78,6 @@ if (cached) {
               >
                 View original recipe
               </a>
-              {fromCache && <span class="ml-2">(served from cache)</span>}
             </header>
             )}
 
