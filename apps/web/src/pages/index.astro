@@ -1,6 +1,27 @@
 ---
 import "@workspace/ui/globals.css"
-import { Button } from "@workspace/ui/components/button"
+import { RecipeForm } from "@/components/RecipeForm"
+
+const env = Astro.locals.runtime.env
+
+interface RecipeMeta {
+  title: string
+  imageUrl: string | null
+  savedAt: number
+}
+
+// List up to 10 keys, sorted by savedAt descending, take 3
+const listResult = await env.RECIPES.list<RecipeMeta>()
+
+const recentRecipes = listResult.keys
+  .filter((k) => k.metadata?.savedAt != null)
+  .sort((a, b) => (b.metadata!.savedAt) - (a.metadata!.savedAt))
+  .slice(0, 3)
+  .map((k) => ({
+    url: k.name,
+    title: k.metadata!.title,
+    imageUrl: k.metadata!.imageUrl,
+  }))
 ---
 
 <html lang="en">
@@ -8,17 +29,52 @@ import { Button } from "@workspace/ui/components/button"
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Astro App</title>
+    <title>Meal Prep</title>
   </head>
   <body>
-    <div class="flex min-h-svh p-6">
-      <div class="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 class="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We've already added the button component for you.</p>
-          <Button client:load className="mt-2">Button</Button>
+    <div class="flex min-h-svh items-center justify-center p-6">
+      <div class="flex w-full max-w-md flex-col gap-8">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-1">
+            <h1 class="text-xl font-semibold tracking-tight">Save a Recipe</h1>
+            <p class="text-muted-foreground text-sm">
+              Paste a link to any recipe page and we'll extract the ingredients
+              and instructions for you.
+            </p>
+          </div>
+          <RecipeForm client:load />
         </div>
+
+        {
+          recentRecipes.length > 0 && (
+            <div class="flex flex-col gap-3">
+              <h2 class="text-sm font-medium text-muted-foreground">Recent recipes</h2>
+              <ul class="flex flex-col gap-2">
+                {recentRecipes.map((r) => (
+                  <li>
+                    <a
+                      href={`/recipe?url=${encodeURIComponent(r.url)}`}
+                      class="group flex items-center gap-3 rounded-lg ring-1 ring-foreground/10 bg-card text-card-foreground overflow-hidden transition-shadow hover:ring-foreground/20 hover:shadow-sm"
+                    >
+                      {r.imageUrl ? (
+                        <img
+                          src={r.imageUrl}
+                          alt={r.title}
+                          class="h-14 w-20 shrink-0 object-cover"
+                        />
+                      ) : (
+                        <div class="h-14 w-20 shrink-0 bg-muted" />
+                      )}
+                      <span class="truncate pr-3 text-sm font-medium">
+                        {r.title}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
       </div>
     </div>
   </body>

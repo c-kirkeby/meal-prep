@@ -1,0 +1,8 @@
+name = "meal-prep"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+[[kv_namespaces]]
+binding = "RECIPES"
+id = "af8ad2ef3ae44e52b57e9469d7d3272b"

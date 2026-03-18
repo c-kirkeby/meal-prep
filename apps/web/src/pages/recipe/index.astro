@@ -1,0 +1,174 @@
+---
+import "@workspace/ui/globals.css"
+import { scrapeRecipe } from "@/lib/scrape"
+import type { Recipe } from "@/lib/types"
+import { IngredientList } from "@/components/IngredientList"
+
+const env = Astro.locals.runtime.env
+
+// ── Resolve the recipe URL from query param ───────────────────────────────────
+const rawUrl = Astro.url.searchParams.get("url")
+
+if (!rawUrl) {
+  return Astro.redirect("/")
+}
+
+let recipeUrl: string
+try {
+  recipeUrl = decodeURIComponent(rawUrl)
+  new URL(recipeUrl) // validate
+} catch {
+  return Astro.redirect("/")
+}
+
+// ── KV cache check ─────────────────────────────────────────────────────────────
+const cacheKey = recipeUrl
+let recipe: Recipe | null = null
+let fromCache = false
+
+const cached = await env.RECIPES.get(cacheKey, "json")
+if (cached) {
+  recipe = cached as Recipe
+  fromCache = true
+} else {
+  recipe = await scrapeRecipe(recipeUrl, env.CLOUDFLARE_ACCOUNT_ID, env.CLOUDFLARE_API_TOKEN)
+    if (recipe) {
+      await env.RECIPES.put(cacheKey, JSON.stringify(recipe), {
+        metadata: {
+          title: recipe.title,
+          imageUrl: recipe.imageUrl ?? null,
+          savedAt: Date.now(),
+        },
+      })
+    }
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{recipe ? recipe.title : "Recipe"} — Meal Prep</title>
+  </head>
+  <body>
+    <div class="mx-auto max-w-2xl px-6 py-12">
+      <a
+        href="/"
+        class="text-muted-foreground hover:text-foreground mb-8 inline-flex items-center gap-1 text-sm transition-colors"
+      >
+        &larr; Back
+      </a>
+
+      {
+        !recipe ? (
+          <div class="flex flex-col gap-2">
+            <h1 class="text-xl font-semibold">Could not extract recipe</h1>
+            <p class="text-muted-foreground text-sm">
+              We weren't able to find a recipe at{" "}
+              <a
+                href={recipeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline"
+              >
+                {recipeUrl}
+              </a>
+              . The site may not publish structured data and our AI extraction
+              may have failed.
+            </p>
+          </div>
+        ) : (
+          <article class="flex flex-col gap-8">
+            {recipe.imageUrl && (
+              <img
+                src={recipe.imageUrl}
+                alt={recipe.title}
+                class="aspect-video w-full rounded-lg object-cover"
+              />
+            )}
+
+            <div class="flex flex-col gap-2">
+              <h1 class="text-2xl font-semibold tracking-tight">
+                {recipe.title}
+              </h1>
+              {recipe.description && (
+                <p class="text-muted-foreground text-sm leading-relaxed">
+                  {recipe.description}
+                </p>
+              )}
+            </div>
+
+            {(recipe.prepTime || recipe.cookTime || recipe.totalTime || recipe.servings) && (
+              <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {recipe.prepTime && (
+                  <div class="bg-muted rounded-md px-3 py-2">
+                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                      Prep
+                    </dt>
+                    <dd class="mt-0.5 text-sm font-medium">{recipe.prepTime}</dd>
+                  </div>
+                )}
+                {recipe.cookTime && (
+                  <div class="bg-muted rounded-md px-3 py-2">
+                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                      Cook
+                    </dt>
+                    <dd class="mt-0.5 text-sm font-medium">{recipe.cookTime}</dd>
+                  </div>
+                )}
+                {recipe.totalTime && (
+                  <div class="bg-muted rounded-md px-3 py-2">
+                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                      Total
+                    </dt>
+                    <dd class="mt-0.5 text-sm font-medium">{recipe.totalTime}</dd>
+                  </div>
+                )}
+                {recipe.servings && (
+                  <div class="bg-muted rounded-md px-3 py-2">
+                    <dt class="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                      Serves
+                    </dt>
+                    <dd class="mt-0.5 text-sm font-medium">{recipe.servings}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+
+            <section>
+              <h2 class="mb-3 text-base font-semibold">Ingredients</h2>
+              <IngredientList ingredients={recipe.ingredients} client:load />
+            </section>
+
+            <section>
+              <h2 class="mb-3 text-base font-semibold">Instructions</h2>
+              <ol class="flex flex-col gap-4">
+                {recipe.instructions.map((step, i) => (
+                  <li class="flex gap-3 text-sm">
+                    <span class="bg-primary text-primary-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                      {i + 1}
+                    </span>
+                    <span class="leading-relaxed">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+
+            <footer class="text-muted-foreground border-t pt-4 text-xs">
+              <a
+                href={recipeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-foreground underline transition-colors"
+              >
+                View original recipe
+              </a>
+              {fromCache && <span class="ml-2">(served from cache)</span>}
+            </footer>
+          </article>
+        )
+      }
+    </div>
+  </body>
+</html>
