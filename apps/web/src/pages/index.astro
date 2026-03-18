@@ -1,6 +1,7 @@
 ---
 import "@workspace/ui/globals.css"
 import { RecipeForm } from "@/components/RecipeForm"
+import { RecipeCarousel } from "@/components/RecipeCarousel"
 import { env } from "cloudflare:workers"
 
 interface RecipeMeta {
@@ -15,11 +16,10 @@ const listResult = await env.RECIPES.list<RecipeMeta>()
 const recentRecipes = listResult.keys
   .filter((k) => k.metadata?.savedAt != null)
   .sort((a, b) => b.metadata!.savedAt - a.metadata!.savedAt)
-  .slice(0, 3)
   .map((k) => ({
     url: k.name,
-    title: k.metadata!.title,
-    imageUrl: k.metadata!.imageUrl,
+    title: k.metadata?.title,
+    imageUrl: k.metadata?.imageUrl,
   }))
 ---
 
@@ -32,13 +32,14 @@ const recentRecipes = listResult.keys
   </head>
   <body>
     <div class="flex min-h-svh items-center justify-center p-6">
-      <div class="flex w-full max-w-md flex-col gap-8">
+      <div class="flex w-full max-w-xl flex-col gap-8">
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-1">
-            <h1 class="text-xl font-semibold tracking-tight">Save a Recipe</h1>
-            <p class="text-sm text-muted-foreground">
-              Paste a link to any recipe page and we'll extract the ingredients
-              and instructions for you.
+            <h1 class="text-center text-3xl font-semibold tracking-tight">
+              Save a Recipe
+            </h1>
+            <p class="text-center text-muted-foreground">
+              Paste a link to save your favourite recipes.
             </p>
           </div>
           <RecipeForm client:load />
@@ -46,34 +47,7 @@ const recentRecipes = listResult.keys
 
         {
           recentRecipes.length > 0 && (
-            <div class="flex flex-col gap-3">
-              <h2 class="text-sm font-medium text-muted-foreground">
-                Recent recipes
-              </h2>
-              <ul class="flex flex-col gap-2">
-                {recentRecipes.map((r) => (
-                  <li>
-                    <a
-                      href={`/recipe?url=${encodeURIComponent(r.url)}`}
-                      class="group flex items-center gap-3 overflow-hidden rounded-lg bg-card text-card-foreground ring-1 ring-foreground/10 transition-shadow hover:shadow-sm hover:ring-foreground/20"
-                    >
-                      {r.imageUrl ? (
-                        <img
-                          src={r.imageUrl}
-                          alt={r.title}
-                          class="h-14 w-20 shrink-0 object-cover"
-                        />
-                      ) : (
-                        <div class="h-14 w-20 shrink-0 bg-muted" />
-                      )}
-                      <span class="truncate pr-3 text-sm font-medium">
-                        {r.title}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <RecipeCarousel recipes={recentRecipes} client:load />
           )
         }
       </div>

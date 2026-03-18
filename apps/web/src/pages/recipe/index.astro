@@ -31,16 +31,20 @@ if (cached) {
   recipe = cached as Recipe
   fromCache = true
 } else {
-  recipe = await scrapeRecipe(recipeUrl, env.CLOUDFLARE_ACCOUNT_ID, env.CLOUDFLARE_API_TOKEN)
-    if (recipe) {
-      await env.RECIPES.put(cacheKey, JSON.stringify(recipe), {
-        metadata: {
-          title: recipe.title,
-          imageUrl: recipe.imageUrl ?? null,
-          savedAt: Date.now(),
-        },
-      })
-    }
+  recipe = await scrapeRecipe(
+    recipeUrl,
+    env.CLOUDFLARE_ACCOUNT_ID,
+    env.CLOUDFLARE_API_TOKEN
+  )
+  if (recipe) {
+    await env.RECIPES.put(cacheKey, JSON.stringify(recipe), {
+      metadata: {
+        title: recipe.title,
+        imageUrl: recipe.imageUrl ?? null,
+        savedAt: Date.now(),
+      },
+    })
+  }
 }
 ---
 
@@ -86,6 +90,17 @@ if (cached) {
                 alt={recipe.title}
                 class="aspect-video w-full rounded-lg object-cover"
               />
+            <header class="text-xs text-muted-foreground">
+              <a
+                href={recipeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="underline transition-colors hover:text-foreground"
+              >
+                View original recipe
+              </a>
+              {fromCache && <span class="ml-2">(served from cache)</span>}
+            </header>
             )}
 
             <div class="flex flex-col gap-2">
@@ -166,17 +181,6 @@ if (cached) {
               </ol>
             </section>
 
-            <footer class="border-t pt-4 text-xs text-muted-foreground">
-              <a
-                href={recipeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline transition-colors hover:text-foreground"
-              >
-                View original recipe
-              </a>
-              {fromCache && <span class="ml-2">(served from cache)</span>}
-            </footer>
           </article>
         )
       }
