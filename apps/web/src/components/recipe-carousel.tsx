@@ -15,7 +15,7 @@ interface Props {
 export function RecipeCarousel({ recipes }: Props) {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-muted-foreground">
+      <h2 className="font-medium text-muted-foreground">
         Recent recipes
       </h2>
       <Carousel opts={{ align: "start" }} className="w-full">

@@ -1,7 +1,7 @@
 ---
 import "@workspace/ui/globals.css"
-import { RecipeForm } from "@/components/RecipeForm"
-import { RecipeCarousel } from "@/components/RecipeCarousel"
+import { RecipeForm } from "@/components/recipe-form"
+import { RecipeCarousel } from "@/components/recipe-carousel"
 import { getLiveCollection } from "astro:content"
 
 const { entries, error } = await getLiveCollection("recipes", { limit: 10 })
@@ -9,8 +9,9 @@ const { entries, error } = await getLiveCollection("recipes", { limit: 10 })
 const recentRecipes =
   !error && entries
     ? entries
-        .filter((e): e is typeof e & { data: { title: string } } =>
-          typeof e.data.title === "string"
+        .filter(
+          (e): e is typeof e & { data: { title: string } } =>
+            typeof e.data.title === "string"
         )
         .map((e) => ({
           url: e.id,
