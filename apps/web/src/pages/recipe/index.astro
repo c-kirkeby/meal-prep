@@ -23,8 +23,8 @@ try {
 // ── Load via live loader (KV cache → scrape → persist) ────────────────────────
 const { entry, error } = await getLiveEntry("recipes", recipeUrl)
 
-const recipe: Recipe | null =
-  !error && entry ? (entry.data as Recipe) : null
+const recipe: Recipe | null = !error && entry ? (entry.data as Recipe) : null
+const hostname = new URL(recipeUrl).hostname
 ---
 
 <html lang="en">
@@ -63,24 +63,25 @@ const recipe: Recipe | null =
           </div>
         ) : (
           <article class="flex flex-col gap-8">
-            {recipe.imageUrl && (
-              <img
-                src={recipe.imageUrl}
-                alt={recipe.title}
-                class="aspect-video w-full rounded-lg object-cover"
-              />
-            <header class="text-xs text-muted-foreground">
-              <a
-                href={recipeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="underline transition-colors hover:text-foreground"
-              >
-                View original recipe
-              </a>
-            </header>
-            )}
-
+            <div class="flex flex-col gap-2">
+              {recipe.imageUrl && (
+                <img
+                  src={recipe.imageUrl}
+                  alt={recipe.title}
+                  class="aspect-video w-full rounded-lg object-cover"
+                />
+              )}
+              <header class="text-xs text-muted-foreground">
+                <a
+                  href={recipeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="underline transition-colors hover:text-foreground"
+                >
+                  View original recipe (https://{hostname})
+                </a>
+              </header>
+            </div>
             <div class="flex flex-col gap-2">
               <h1 class="text-2xl font-semibold tracking-tight">
                 {recipe.title}
@@ -158,7 +159,6 @@ const recipe: Recipe | null =
                 ))}
               </ol>
             </section>
-
           </article>
         )
       }
