@@ -52,14 +52,13 @@ function normaliseImage(raw: unknown): string | undefined {
 }
 
 function extractFromJsonLd(html: string, pageUrl: string): Recipe | null {
-  const scriptRegex =
-    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
-  let match: RegExpExecArray | null
+  const { document } = parseHTML(html)
+  const scripts = document.querySelectorAll('script[type="application/ld+json"]')
 
-  while ((match = scriptRegex.exec(html)) !== null) {
+  for (const script of Array.from(scripts)) {
     let data: unknown
     try {
-      data = JSON.parse(match[1])
+      data = JSON.parse((script as Element).textContent ?? "")
     } catch {
       continue
     }
