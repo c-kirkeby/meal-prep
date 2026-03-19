@@ -1,3 +1,4 @@
+import { parseHTML } from "linkedom"
 import type { Recipe } from "./types"
 
 // ── JSON-LD helpers ────────────────────────────────────────────────────────────
@@ -113,6 +114,175 @@ function extractFromJsonLd(html: string, pageUrl: string): Recipe | null {
   return null
 }
 
+// ── Microdata extraction ───────────────────────────────────────────────────────
+
+function extractFromMicrodata(html: string, pageUrl: string): Recipe | null {
+  try {
+    const { document } = parseHTML(html)
+
+    // Find the root Recipe element — itemtype must contain schema.org/Recipe
+    const recipeElem = document.querySelector(
+      '[itemtype*="schema.org/Recipe"], [itemtype*="schema.org/recipe"]'
+    ) as Element | null
+    if (!recipeElem) return null
+
+    // Helper: get text from first matching itemprop element
+    const prop = (name: string): string | undefined => {
+      const el = recipeElem.querySelector(`[itemprop="${name}"]`) as Element | null
+      if (!el) return undefined
+      // <meta> and <link> elements carry their value in the content/href attribute
+      const content =
+        el.getAttribute("content") ??
+        el.getAttribute("href") ??
+        el.textContent?.trim()
+      return content || undefined
+    }
+
+    // Helper: collect text from ALL matching itemprop elements
+    const props = (name: string): string[] => {
+      const els = recipeElem.querySelectorAll(`[itemprop="${name}"]`)
+      return Array.from(els)
+        .map((el) => {
+          const e = el as Element
+          return (
+            e.getAttribute("content") ??
+            e.getAttribute("href") ??
+            e.textContent?.trim() ??
+            ""
+          )
+        })
+        .filter(Boolean) as string[]
+    }
+
+    const name = prop("name")
+    const ingredients = props("recipeIngredient")
+
+    // Must have at minimum a title and at least one ingredient
+    if (!name || ingredients.length === 0) return null
+
+    // Instructions: each [itemprop="recipeInstructions"] element may be a
+    // single block of text or an individual step — collect all non-empty values.
+    const rawInstructions = props("recipeInstructions")
+    const instructions = normaliseInstructions(rawInstructions)
+
+    // Image: prefer <img src>, fall back to <meta content>
+    const imgEl = recipeElem.querySelector('[itemprop="image"]') as Element | null
+    let imageUrl: string | undefined
+    if (imgEl) {
+      imageUrl =
+        imgEl.getAttribute("src") ??
+        imgEl.getAttribute("content") ??
+        undefined
+    }
+
+    return {
+      title: name,
+      description: prop("description"),
+      ingredients,
+      instructions,
+      prepTime: prop("prepTime"),
+      cookTime: prop("cookTime"),
+      totalTime: prop("totalTime"),
+      servings: prop("recipeYield"),
+      imageUrl,
+      url: pageUrl,
+    }
+  } catch (err) {
+    console.error("[scrape] Microdata extraction error:", err)
+    return null
+  }
+}
+
+// ── Heuristic HTML scraping ────────────────────────────────────────────────────
+
+function extractFromHeuristics(html: string, pageUrl: string): Recipe | null {
+  try {
+    const { document } = parseHTML(html)
+
+    // Helper: try a list of selectors in order, return text of first match
+    const firstText = (selectors: string[]): string | undefined => {
+      for (const sel of selectors) {
+        try {
+          const el = document.querySelector(sel) as Element | null
+          const text = el?.textContent?.trim()
+          if (text) return text
+        } catch {
+          // invalid selector for this parser — skip
+        }
+      }
+      return undefined
+    }
+
+    // Helper: try selectors in order, return all text values from first that matches
+    const allTexts = (selectors: string[]): string[] => {
+      for (const sel of selectors) {
+        try {
+          const els = document.querySelectorAll(sel)
+          const texts = Array.from(els)
+            .map((el) => (el as Element).textContent?.trim() ?? "")
+            .filter(Boolean) as string[]
+          if (texts.length > 0) return texts
+        } catch {
+          // invalid selector — skip
+        }
+      }
+      return []
+    }
+
+    const title = firstText([
+      "h1.recipe-title",
+      "h1.entry-title",
+      ".recipe-header h1",
+      ".recipe-title h1",
+      ".recipe-title",
+      "h1",
+    ])
+
+    const ingredients = allTexts([
+      ".recipe-ingredient",
+      ".ingredient-list li",
+      ".ingredients-list li",
+      ".recipe-ingredients li",
+      ".ingredients li",
+      "ul.ingredients li",
+      '[class*="ingredient"] li',
+    ])
+
+    const instructions = allTexts([
+      ".recipe-instruction",
+      ".recipe-instructions li",
+      ".instructions li",
+      ".recipe-directions li",
+      ".directions li",
+      "ol.instructions li",
+      '[class*="instruction"] li',
+      '[class*="direction"] li',
+    ])
+
+    // All three must be present for us to trust heuristic output
+    if (!title || ingredients.length === 0 || instructions.length === 0) {
+      return null
+    }
+
+    // Best-effort image from og:image meta
+    const ogImage = document.querySelector(
+      'meta[property="og:image"]'
+    ) as Element | null
+    const imageUrl = ogImage?.getAttribute("content") ?? undefined
+
+    return {
+      title,
+      ingredients,
+      instructions,
+      imageUrl,
+      url: pageUrl,
+    }
+  } catch (err) {
+    console.error("[scrape] Heuristic extraction error:", err)
+    return null
+  }
+}
+
 // ── Cloudflare Browser Rendering fallback ─────────────────────────────────────
 
 const CF_BR_RESPONSE_FORMAT = {
@@ -193,27 +363,44 @@ export async function scrapeRecipe(
   accountId: string,
   apiToken: string
 ): Promise<Recipe | null> {
-  // 1. Try fetching the page directly and parsing JSON-LD
+  // Stages 1–3 all work on the same fetched HTML — one network request.
   try {
     const res = await fetch(recipeUrl, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; RecipeBot/1.0)" },
     })
     if (res.ok) {
       const html = await res.text()
-      const recipe = extractFromJsonLd(html, recipeUrl)
-      if (recipe) {
-        console.log("[scrape] JSON-LD extraction succeeded for", recipeUrl)
-        return recipe
+
+      // Stage 1: JSON-LD structured data
+      const jsonLd = extractFromJsonLd(html, recipeUrl)
+      if (jsonLd) {
+        console.log("[scrape] Stage 1 (JSON-LD) succeeded for", recipeUrl)
+        return jsonLd
       }
+
+      // Stage 2: Microdata (inline HTML attributes, schema.org/Recipe)
+      const microdata = extractFromMicrodata(html, recipeUrl)
+      if (microdata) {
+        console.log("[scrape] Stage 2 (Microdata) succeeded for", recipeUrl)
+        return microdata
+      }
+
+      // Stage 3: Best-effort heuristic HTML scraping
+      const heuristic = extractFromHeuristics(html, recipeUrl)
+      if (heuristic) {
+        console.log("[scrape] Stage 3 (Heuristics) succeeded for", recipeUrl)
+        return heuristic
+      }
+
       console.log(
-        "[scrape] No JSON-LD Recipe found, falling back to Browser Rendering"
+        "[scrape] Stages 1–3 found no recipe, falling back to Browser Rendering"
       )
     }
   } catch (err) {
     console.error("[scrape] Direct fetch failed:", err)
   }
 
-  // 2. Fall back to Cloudflare Browser Rendering /json
-  console.log("[scrape] Using Browser Rendering fallback for", recipeUrl)
+  // Stage 4: Cloudflare Browser Rendering AI — last resort only
+  console.log("[scrape] Stage 4 (Browser Rendering) for", recipeUrl)
   return scrapeViaBrowserRendering(recipeUrl, accountId, apiToken)
 }
