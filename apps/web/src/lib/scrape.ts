@@ -97,7 +97,7 @@ function extractFromJsonLd(html: string, pageUrl: string): Recipe | null {
 
       return {
         title: node.name,
-        description: node.description,
+        description: node.description ? decodeURIComponent(node.description) : node.description,
         ingredients: node.recipeIngredient ?? [],
         instructions: normaliseInstructions(node.recipeInstructions),
         prepTime: node.prepTime,
