@@ -1,0 +1,105 @@
+---
+import "@workspace/ui/globals.css"
+import { NavBar } from "@/components/nav-bar"
+import { getLiveCollection } from "astro:content"
+
+const { entries, error } = await getLiveCollection("recipes")
+
+type RecipeEntry = {
+  url: string
+  title: string
+  imageUrl?: string
+  hostname: string
+}
+
+const recipes: RecipeEntry[] =
+  !error && entries
+    ? entries
+        .filter(
+          (e): e is typeof e & { data: { title: string } } =>
+            typeof e.data.title === "string"
+        )
+        .map((e) => {
+          let hostname = e.id
+          try {
+            hostname = new URL(e.id).hostname.replace(/^www\./, "")
+          } catch {
+            // keep raw id if not a valid URL
+          }
+          return {
+            url: e.id,
+            title: e.data.title,
+            imageUrl: e.data.imageUrl,
+            hostname,
+          }
+        })
+    : []
+
+// Group by hostname, preserving insertion order
+const grouped = recipes.reduce<Map<string, RecipeEntry[]>>((map, recipe) => {
+  const group = map.get(recipe.hostname) ?? []
+  group.push(recipe)
+  map.set(recipe.hostname, group)
+  return map
+}, new Map())
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" href="https://fav.farm/🍽️" />
+    <title>Recipes — Meal Prep</title>
+  </head>
+  <body>
+    <NavBar client:load />
+    <main class="mx-auto max-w-5xl px-6 py-10">
+      <h1 class="mb-8 text-2xl font-semibold tracking-tight">Recipes</h1>
+
+      {
+        recipes.length === 0 ? (
+          <p class="text-muted-foreground">
+            No recipes saved yet. Go to the{" "}
+            <a href="/" class="underline hover:text-foreground transition-colors">
+              home page
+            </a>{" "}
+            to add one.
+          </p>
+        ) : (
+          <div class="flex flex-col gap-12">
+            {Array.from(grouped.entries()).map(([hostname, siteRecipes]) => (
+              <section>
+                <h2 class="mb-4 text-base font-semibold">{hostname}</h2>
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {siteRecipes.map((recipe) => (
+                    <a
+                      href={`/recipe?url=${encodeURIComponent(recipe.url)}`}
+                      class="group flex flex-col overflow-hidden rounded-lg bg-card ring-1 ring-foreground/10 transition-shadow hover:shadow-sm hover:ring-foreground/20"
+                    >
+                      {recipe.imageUrl ? (
+                        <img
+                          src={recipe.imageUrl}
+                          alt={recipe.title}
+                          width={240}
+                          height={160}
+                          class="aspect-[3/2] w-full object-cover"
+                        />
+                      ) : (
+                        <div class="aspect-[3/2] w-full bg-muted" />
+                      )}
+                      <div class="p-3">
+                        <span class="line-clamp-2 text-sm leading-snug font-medium">
+                          {recipe.title}
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )
+      }
+    </main>
+  </body>
+</html>
