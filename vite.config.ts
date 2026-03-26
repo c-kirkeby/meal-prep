@@ -1,0 +1,29 @@
+import { defineConfig } from "vite-plus"
+
+export default defineConfig({
+  staged: {
+    "*": "vp check --fix",
+  },
+  lint: { options: { typeAware: true, typeCheck: true } },
+  fmt: {
+    endOfLine: "lf",
+    semi: false,
+    singleQuote: false,
+    tabWidth: 2,
+    trailingComma: "es5",
+    printWidth: 80,
+    sortTailwindcss: {
+      stylesheet: "packages/ui/src/styles/globals.css",
+      functions: ["cn", "cva"],
+    },
+    sortPackageJson: false,
+    ignorePatterns: [
+      "dist/",
+      "node_modules/",
+      ".turbo/",
+      "coverage/",
+      "pnpm-lock.yaml",
+      ".pnpm-store/",
+    ],
+  },
+})

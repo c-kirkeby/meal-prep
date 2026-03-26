@@ -8,8 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "lint": "eslint",
-    "format": "prettier --write \"**/*.{ts,tsx,astro}\"",
+    "lint": "vp lint",
+    "format": "vp fmt \"**/*.{ts,tsx,astro}\"",
     "typecheck": "astro check",
     "cf-typegen": "wrangler types"
   },
@@ -29,15 +29,10 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.8",
     "@cloudflare/workers-types": "^4.20260317.1",
-    "@eslint/js": "^9.39.2",
     "@tailwindcss/vite": "^4.1.18",
     "@types/node": "^25.1.0",
-    "eslint": "^9.39.2",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^17.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.54.0",
     "wrangler": "^4.75.0"
   }
 }
